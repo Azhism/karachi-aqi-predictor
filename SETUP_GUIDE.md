@@ -53,9 +53,9 @@ karachi-aqi-predictor/
    - Click: **Connect** → **Connect your application**
    - Copy the connection string:
      ```
-     mongodb+srv://karachi_aqi_user:<password>@cluster0.xxxxx.mongodb.net/
+     mongodb+srv://<username>:<password>@<your-cluster>.mongodb.net/
      ```
-   - Replace `<password>` with your actual password
+   - Replace `<username>`, `<password>`, and `<your-cluster>` with your actual values
 
 ---
 
@@ -64,7 +64,8 @@ karachi-aqi-predictor/
 Open `.env` file and update:
 
 ```env
-MONGODB_URI=mongodb+srv://karachi_aqi_user:YOUR_PASSWORD@cluster0.xxxxx.mongodb.net/
+# Replace with your actual MongoDB Atlas connection string
+MONGODB_URI=mongodb+srv://<username>:<password>@<your-cluster>.mongodb.net/
 MONGODB_DATABASE=aqi_karachi
 
 CITY_NAME=Karachi

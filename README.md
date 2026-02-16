@@ -95,7 +95,8 @@ pip install -r requirements.txt
 ### 3. Configure Environment Variables
 Edit `.env` file with your credentials:
 ```env
-MONGODB_URI=mongodb+srv://your_username:your_password@cluster.mongodb.net/
+# Replace with your actual MongoDB Atlas connection string
+MONGODB_URI=mongodb+srv://<username>:<password>@<your-cluster>.mongodb.net/<database>
 ```
 
 ### 4. Upload Initial Data

@@ -74,18 +74,19 @@ karachi-aqi-predictor/
    - Driver: Python, Version: 3.6 or later
    - Copy the connection string (looks like):
      ```
-     mongodb+srv://karachi_aqi_user:<password>@cluster0.xxxxx.mongodb.net/
+     mongodb+srv://<username>:<password>@<your-cluster>.mongodb.net/
      ```
 
 ### Step 2: Update .env File (2 minutes)
 
 1. Open `.env` file in VSCode
 2. Replace the entire `MONGODB_URI` line with your connection string
-3. Replace `<password>` with your actual password
+3. Replace `<username>`, `<password>`, and `<your-cluster>` with your actual values
 
-**Example:**
+**Example format (use your own values):**
 ```env
-MONGODB_URI=mongodb+srv://karachi_aqi_user:MySecurePassword123@cluster0.abc123.mongodb.net/
+# DO NOT commit real credentials to Git!
+MONGODB_URI=mongodb+srv://<your-username>:<your-password>@<your-cluster>.mongodb.net/
 MONGODB_DATABASE=aqi_karachi
 
 CITY_NAME=Karachi
