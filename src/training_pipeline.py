@@ -23,8 +23,8 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 
-# Models
-from sklearn.ensemble import RandomForestClassifier
+# Classification Models
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
@@ -125,7 +125,7 @@ class TrainingPipeline:
     
     def define_models(self):
         """Define all models to train"""
-        print("\n🤖 Defining models...")
+        print("\n🤖 Defining classification models...")
         
         self.models = {
             'RandomForest': RandomForestClassifier(
@@ -156,6 +156,7 @@ class TrainingPipeline:
         }
         
         print(f"   ✅ Defined {len(self.models)} classification models")
+        print(f"   Models: {', '.join(self.models.keys())}")
     
     def train_and_evaluate(self, X_train, X_test, y_train, y_test):
         """Train and evaluate all models"""
