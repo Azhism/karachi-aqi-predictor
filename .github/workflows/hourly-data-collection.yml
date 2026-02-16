@@ -1,0 +1,41 @@
+name: Hourly Data Collection
+
+on:
+  schedule:
+    # Run every hour at the top of the hour
+    - cron: '0 * * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  collect-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Fetch latest data and update MongoDB
+      env:
+        MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      run: |
+        python -m src.feature_pipeline
+    
+    - name: Log completion
+      if: success()
+      run: |
+        echo "✅ Data collection completed successfully at $(date)"
+    
+    - name: Log failure
+      if: failure()
+      run: |
+        echo "❌ Data collection failed at $(date)"
