@@ -230,7 +230,7 @@ def main():
                 height=400
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.warning("No historical data available")
         
@@ -260,7 +260,7 @@ def main():
                 st.dataframe(
                     df_models,
                     hide_index=True,
-                    use_container_width=True
+                    width='stretch'
                 )
         
         with col2:
@@ -290,7 +290,7 @@ def main():
                     height=300
                 )
                 
-                st.plotly_chart(fig_acc, use_container_width=True)
+                st.plotly_chart(fig_acc, width='stretch')
         
         st.divider()
         
