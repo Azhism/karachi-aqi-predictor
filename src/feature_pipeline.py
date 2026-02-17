@@ -269,16 +269,22 @@ class FeaturePipeline:
             df_combined = self.create_rolling_features(df_combined)
             df_combined = self.create_derived_features(df_combined)
             
-            # Remove NaN
-            print("🧹 Cleaning NaN values...")
-            df_clean = df_combined.dropna()
-            
-            # Find new records (those not in MongoDB yet)
+            # Find new records FIRST (before dropping NaN)
             if not df_existing.empty:
                 latest_db_time = pd.to_datetime(df_existing['datetime'].max())
-                df_new_only = df_clean[df_clean['datetime'] > latest_db_time]
+                df_new_only = df_combined[df_combined['datetime'] > latest_db_time]
             else:
-                df_new_only = df_clean
+                df_new_only = df_combined
+            
+            # Remove NaN only from new records
+            print(f"🧹 Cleaning NaN values from {len(df_new_only)} new records...")
+            original_new_count = len(df_new_only)
+            df_new_only = df_new_only.dropna()
+            nan_removed = original_new_count - len(df_new_only)
+            
+            if nan_removed > 0:
+                print(f"   ⚠️  Removed {nan_removed} records with NaN (insufficient history for lag features)")
+                print(f"   ✅ {len(df_new_only)} clean new records ready to store")
             
             if len(df_new_only) > 0:
                 print(f"💾 Storing {len(df_new_only)} new feature records...")
