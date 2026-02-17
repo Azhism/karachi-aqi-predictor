@@ -247,7 +247,7 @@ class FeaturePipeline:
             
             # Get existing features from MongoDB
             print("📥 Loading existing features from MongoDB...")
-            df_existing = self.db.get_features(limit=200)  # Get last 200 hours
+            df_existing = self.db.get_features()  # Get ALL existing records
             
             if not df_existing.empty:
                 # Combine with existing
