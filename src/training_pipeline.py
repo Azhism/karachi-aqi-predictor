@@ -138,18 +138,18 @@ class TrainingPipeline:
         print("\n🤖 Defining classification models...")
         
         # ─────────────────────────────────────────────
-        #  RANDOM FOREST - REGULARIZED TO PREVENT OVERFITTING
+        #  RANDOM FOREST - HYPERTUNED PARAMETERS
         # ─────────────────────────────────────────────
         self.models = {
             'RandomForest': RandomForestClassifier(
-                n_estimators=200,           # More trees, shallower
-                max_depth=10,               # LIMIT DEPTH to prevent memorization
-                min_samples_split=20,       # Need at least 20 samples to split
-                min_samples_leaf=10,        # Each leaf needs at least 10 samples
-                max_features='sqrt',        # Default: 'sqrt' for classification
-                bootstrap=True,             # Default: True
-                criterion='gini',           # Default: 'gini'
-                max_samples=0.8,            # Use only 80% of samples per tree
+                n_estimators=100,           # Tuned: 100
+                max_depth=10,               # Tuned: 10
+                min_samples_split=10,       # Tuned: 10
+                min_samples_leaf=1,         # Tuned: 1
+                max_features=0.5,           # Tuned: 0.5 (50% of features)
+                bootstrap=False,            # Tuned: False
+                criterion='entropy',        # Tuned: entropy
+                max_samples=None,           # Tuned: None
                 random_state=RANDOM_STATE,
                 n_jobs=-1
             ),

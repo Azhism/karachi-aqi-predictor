@@ -139,44 +139,37 @@ class FeaturePipeline:
     # ========================================
     
     def create_time_features(self, df):
-        """Create time-based features"""
+        """Create time-based features (only cyclical + weekend to match 30-feature dataset)"""
         print("🕐 Creating time features...")
         
         df['datetime'] = pd.to_datetime(df['datetime'])
         
-        df['year'] = df['datetime'].dt.year
-        df['month'] = df['datetime'].dt.month
-        df['day'] = df['datetime'].dt.day
-        df['hour'] = df['datetime'].dt.hour
-        df['day_of_week'] = df['datetime'].dt.dayofweek
-        df['is_weekend'] = df['day_of_week'].isin([5, 6]).astype(int)
-        df['week_of_year'] = df['datetime'].dt.isocalendar().week
+        # Create intermediate features (will drop later)
+        hour = df['datetime'].dt.hour
+        day_of_week = df['datetime'].dt.dayofweek
+        month = df['datetime'].dt.month
         
-        # Cyclical encoding
-        df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-        df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
-        df['day_of_week_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
-        df['day_of_week_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
-        df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
-        df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
+        # Keep only cyclical features + is_weekend
+        df['hour_sin'] = np.sin(2 * np.pi * hour / 24)
+        df['hour_cos'] = np.cos(2 * np.pi * hour / 24)
+        df['day_of_week_sin'] = np.sin(2 * np.pi * day_of_week / 7)
+        df['day_of_week_cos'] = np.cos(2 * np.pi * day_of_week / 7)
+        df['month_sin'] = np.sin(2 * np.pi * month / 12)
+        df['month_cos'] = np.cos(2 * np.pi * month / 12)
+        df['is_weekend'] = day_of_week.isin([5, 6]).astype(int)
         
-        print("   ✅ Created 13 time features")
+        print("   ✅ Created 7 time features (cyclical + weekend)")
         return df
     
     def create_lag_features(self, df):
-        """Create lag features (using AQI as in training data)"""
+        """Create lag features (only AQI lags to match 30-feature dataset)"""
         print("⏮️  Creating lag features...")
         
-        # AQI lag features (matches training dataset)
+        # AQI lag features only (24h, 48h, 72h)
         for lag in LAG_FEATURES:
             df[f'aqi_lag_{lag}h'] = df['aqi'].shift(lag)
         
-        # Weather lag features
-        df['temperature_lag_24h'] = df['temperature'].shift(24)
-        df['humidity_lag_24h'] = df['humidity'].shift(24)
-        df['wind_speed_lag_24h'] = df['wind_speed'].shift(24)
-        
-        print(f"   ✅ Created {len(LAG_FEATURES) + 3} lag features")
+        print(f"   ✅ Created {len(LAG_FEATURES)} AQI lag features")
         return df
     
     def create_rolling_features(self, df):
@@ -194,21 +187,19 @@ class FeaturePipeline:
         return df
     
     def create_derived_features(self, df):
-        """Create derived features (matches training dataset)"""
+        """Create derived features (matches 30-feature dataset)"""
         print("🔧 Creating derived features...")
         
-        # AQI rate of change - only 24h (1h and 3h were dropped during EDA)
+        # AQI rate of change (only 24h)
         df['aqi_change_24h'] = df['aqi'].diff(24)
         
-        # Interactions (matches training dataset)
+        # Interactions (matches 30-feature dataset)
         df['temp_humidity'] = df['temperature'] * df['humidity']
-        df['wind_pollution'] = df['wind_speed'] * df['aqi']  # Using AQI as pollution indicator
-        df['temp_wind'] = df['temperature'] * df['wind_speed']
+        df['wind_pollution'] = df['wind_speed'] * df['aqi']
         
         # Note: AQI column already exists from OpenWeather API (direct values 1-5)
-        # No conversion needed - this matches training dataset methodology
         
-        print("   ✅ Created 4 derived features (AQI already provided by OpenWeather)")
+        print("   ✅ Created 3 derived features")
         return df
     
     # ========================================

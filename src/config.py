@@ -43,8 +43,9 @@ TRAIN_TEST_SPLIT = float(get_config('TRAIN_TEST_SPLIT', 0.2))
 RANDOM_STATE = 42
 
 # Feature Engineering Configuration
-LAG_FEATURES = [1, 2, 3, 6, 12, 24, 48, 72]
-ROLLING_WINDOWS = [6, 12, 24, 48, 72]
+# Only use lags >= 24h to avoid data leakage (predicting 72h ahead)
+LAG_FEATURES = [24, 48, 72]  # Removed: 1, 2, 3, 6, 12 (data leakage)
+ROLLING_WINDOWS = [72]  # Only 72h rolling windows (matches clean dataset)
 
 # MongoDB Collections
 COLLECTION_RAW_DATA = 'raw_data'
