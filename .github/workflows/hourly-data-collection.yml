@@ -33,6 +33,7 @@ jobs:
     - name: Fetch latest data and update MongoDB
       env:
         MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        MONGODB_DATABASE: aqi_karachi
         OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
       run: |
         echo "📊 Fetching data from APIs and updating MongoDB..."
@@ -50,11 +51,11 @@ jobs:
         
         client = MongoClient(os.environ['MONGODB_URI'])
         db = client['aqi_karachi']
-        collection = db['hourly_features']
+        collection = db['features']
         
-        latest = collection.find_one(sort=[('timestamp', -1)])
+        latest = collection.find_one(sort=[('datetime', -1)])
         if latest:
-            print(f"✅ Latest record timestamp: {latest['timestamp']}")
+            print(f"✅ Latest record datetime: {latest['datetime']}")
             print(f"📊 Total records in DB: {collection.count_documents({})}")
         else:
             print("⚠️ No records found")

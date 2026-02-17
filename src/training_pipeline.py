@@ -81,9 +81,14 @@ class TrainingPipeline:
         print(f"   Original: {len(df):,} records")
         print(f"   After creating target: {len(df_train):,} records")
         
-        # Remove rows with NaN in ANY feature (from lag/rolling features)
+        # Separate features and target FIRST (before dropna)
+        # Exclude datetime, target, and target variable
+        exclude_cols = ['datetime', 'target', TARGET_VARIABLE]
+        feature_cols = [col for col in df_train.columns if col not in exclude_cols]
+        
+        # Remove rows with NaN in FEATURE columns only
         original_count = len(df_train)
-        df_train = df_train.dropna()
+        df_train = df_train.dropna(subset=feature_cols)
         nan_removed = original_count - len(df_train)
         
         if nan_removed > 0:
@@ -91,11 +96,7 @@ class TrainingPipeline:
         
         print(f"   Final training records: {len(df_train):,}")
         
-        # Separate features and target
-        # Exclude datetime, target, target variable, and categorical columns
-        exclude_cols = ['datetime', 'target', TARGET_VARIABLE, 'aqi_category', 'aqi_value']
-        feature_cols = [col for col in df_train.columns if col not in exclude_cols]
-        
+        # Extract features and target from cleaned data
         X = df_train[feature_cols]
         y = df_train['target']
         
@@ -108,15 +109,20 @@ class TrainingPipeline:
         
         return X, y_encoded, feature_cols
     
-    def split_data(self, X, y):
+    def split_data(self, X, y, test_size=None, random_state=None, stratify=None):
         """Split data into train and test sets"""
-        print(f"\n📊 Splitting data (test size: {TRAIN_TEST_SPLIT*100}%)...")
+        # Use provided parameters or defaults from config
+        test_size = test_size if test_size is not None else TRAIN_TEST_SPLIT
+        random_state = random_state if random_state is not None else RANDOM_STATE
+        
+        print(f"\n📊 Splitting data (test size: {test_size*100}%)...")
         
         X_train, X_test, y_train, y_test = train_test_split(
             X, y,
-            test_size=TRAIN_TEST_SPLIT,
-            random_state=RANDOM_STATE,
-            shuffle=False  # Keep temporal order
+            test_size=test_size,
+            random_state=random_state,
+            stratify=stratify,
+            shuffle=True if stratify is not None else False  # Shuffle if stratifying
         )
         
         print(f"   Training samples: {len(X_train):,}")
@@ -138,69 +144,70 @@ class TrainingPipeline:
         print("\n🤖 Defining classification models...")
         
         # ─────────────────────────────────────────────
-        #  RANDOM FOREST - HYPERTUNED PARAMETERS
+        #  RANDOM FOREST - CONSERVATIVE PARAMETERS
         # ─────────────────────────────────────────────
         self.models = {
             'RandomForest': RandomForestClassifier(
-                n_estimators=100,           # Tuned: 100
-                max_depth=10,               # Tuned: 10
-                min_samples_split=10,       # Tuned: 10
-                min_samples_leaf=1,         # Tuned: 1
-                max_features=0.5,           # Tuned: 0.5 (50% of features)
-                bootstrap=False,            # Tuned: False
-                criterion='entropy',        # Tuned: entropy
-                max_samples=None,           # Tuned: None
+                n_estimators=100,           # Moderate number of trees
+                max_depth=4,                # Reduced from 5 to prevent overfitting
+                min_samples_split=15,       # Increased from 10 (more conservative splits)
+                min_samples_leaf=5,         # Increased from 1 (require more samples per leaf)
+                max_features=0.5,           # Reduced from 0.7 (use 50% of features)
+                bootstrap=True,             # Changed to True (use bootstrap for variance reduction)
+                criterion='gini',           # Changed to gini (often more robust)
+                max_samples=0.8,            # Use 80% of data per tree
                 random_state=RANDOM_STATE,
                 n_jobs=-1
             ),
             
             # ─────────────────────────────────────────────
-            #  XGBOOST - REGULARIZED TO PREVENT OVERFITTING
+            #  XGBOOST - CONSERVATIVE PARAMETERS
             # ─────────────────────────────────────────────
             'XGBoost': XGBClassifier(
-                n_estimators=200,           # More trees
-                max_depth=4,                # REDUCED depth (was 6)
-                learning_rate=0.05,         # REDUCED learning rate (was 0.3)
-                subsample=0.8,              # Use 80% of data per tree
-                colsample_bytree=0.8,       # Use 80% of features per tree
-                min_child_weight=3,         # Minimum samples in leaf (was 1)
-                gamma=0.1,                  # Minimum loss reduction (was 0)
-                reg_alpha=0.5,              # L1 regularization (was 0)
-                reg_lambda=2.0,             # L2 regularization (was 1)
-                max_delta_step=0,           # Default: 0 (helps with imbalanced classes)
+                n_estimators=200,           # Reduced from 500 to prevent overfitting
+                max_depth=4,                # HEAVILY reduced from 11 (was way too deep)
+                learning_rate=0.05,         # Keep slow learning rate
+                subsample=0.7,              # Reduced from 0.8 (use less data per tree)
+                colsample_bytree=0.6,       # Slightly increased from 0.5
+                min_child_weight=5,         # Increased from 1 (more samples per leaf)
+                gamma=0.2,                  # Increased from 0.1 (higher split threshold)
+                reg_alpha=1.0,              # Increased L1 regularization from 0.01
+                reg_lambda=3.0,             # Increased L2 regularization from 0.5
+                max_delta_step=0,           # Reset to 0 (default)
                 random_state=RANDOM_STATE,
                 n_jobs=-1,
                 eval_metric='mlogloss'
             ),
             
             # ─────────────────────────────────────────────
-            #  LIGHTGBM - REGULARIZED TO PREVENT OVERFITTING
+            #  LIGHTGBM - CONSERVATIVE PARAMETERS
             # ─────────────────────────────────────────────
             'LightGBM': LGBMClassifier(
-                n_estimators=200,           # More trees
-                max_depth=8,                # LIMIT DEPTH (was -1 unlimited!)
-                learning_rate=0.05,         # REDUCED learning rate (was 0.1)
-                num_leaves=20,              # REDUCED leaves (was 31)
-                subsample=0.8,              # Use 80% of data (was 1.0)
-                subsample_freq=1,           # Apply subsample every iteration (was 0)
-                colsample_bytree=0.8,       # Use 80% of features (was 1.0)
-                reg_alpha=0.5,              # L1 regularization (was 0.0!)
-                reg_lambda=2.0,             # L2 regularization (was 0.0!)
-                min_child_samples=30,       # Increased from 20
-                min_split_gain=0.01,        # Require gain to split (was 0.0)
-                max_bin=200,                # Reduced histogram bins (was 255)
-                path_smooth=0.0,            # Default: 0.0 (label smoothing)
-                extra_trees=False,          # Default: False (extremely randomized trees)
-                class_weight=None,          # Default: None (use 'balanced' for imbalanced data)
+                n_estimators=200,           # Reduced from 500
+                max_depth=4,                # Slightly increased from 3 but conservative
+                learning_rate=0.1,         # Reduced from 0.1 (slower learning)
+                num_leaves=15,              # Heavily reduced from 63 (was too complex)
+                subsample= 0.8,              # Reduced from 0.9
+                colsample_bytree=0.8,       # Reduced from 1.0
+                reg_alpha= 0.5,              # Increased L1 from 0.001
+                reg_lambda= 1,             # Increased L2 from 0.01
+                min_child_samples=10,       # Increased from 20
+                # min_split_gain=0.0,         # Increased from 0.0 (require gain to split)
+                # max_bin= 511,                # Reduced from 511
+                # path_smooth=0.0,            # Reset to default
+                # extra_trees=True,          # Disabled (was True)
+                # class_weight='balanced',    # Keep balanced for imbalanced classes
                 random_state=RANDOM_STATE,
                 n_jobs=-1,
+                force_col_wise=True,
                 verbose=-1
-            )
+            ),
+
         }
         
         print(f"   ✅ Defined {len(self.models)} classification models")
         print(f"   Models: {', '.join(self.models.keys())}")
-        print(f"   📝 Using default hyperparameters (update after tuning)")
+        print(f"   📝 Using conservative hyperparameters to prevent overfitting")
     
     def train_and_evaluate(self, X_train, X_test, y_train, y_test):
         """Train and evaluate all models"""
@@ -226,10 +233,10 @@ class TrainingPipeline:
                 test_recall = recall_score(y_test, y_test_pred, average='weighted', zero_division=0)
                 test_f1 = f1_score(y_test, y_test_pred, average='weighted', zero_division=0)
                 
-                # Cross-validation (3-fold)
+                # Cross-validation (5-fold)
                 cv_scores = cross_val_score(
                     model, X_train, y_train,
-                    cv=3,
+                    cv=5,
                     scoring='accuracy',
                     n_jobs=-1
                 )
@@ -347,7 +354,8 @@ class TrainingPipeline:
             
             # Prepare metadata - Classification Metrics
             metrics = {
-                'accuracy': float(result['test_accuracy']),
+                'test_accuracy': float(result['test_accuracy']),
+                'train_accuracy': float(result['train_accuracy']),
                 'precision': float(result['test_precision']),
                 'recall': float(result['test_recall']),
                 'f1_score': float(result['test_f1']),
@@ -405,7 +413,7 @@ class TrainingPipeline:
             X, y, feature_cols = self.prepare_training_data(df)
             
             # Split data
-            X_train, X_test, y_train, y_test = self.split_data(X, y)
+            X_train, X_test, y_train, y_test = self.split_data(X, y, test_size=0.2, random_state=42, stratify=y)
             
             # Define models
             self.define_models()

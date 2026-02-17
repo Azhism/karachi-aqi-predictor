@@ -116,16 +116,6 @@ class FeaturePipeline:
             
             df = pd.DataFrame(records)
             
-            # Map AQI to categories (same as training data)
-            aqi_mapping = {
-                1: 'Good',
-                2: 'Fair',
-                3: 'Moderate',
-                4: 'Poor',
-                5: 'Very Poor'
-            }
-            df['aqi_category'] = df['aqi'].map(aqi_mapping)
-            
             print(f"   ✅ Fetched {len(df)} AQI records from OpenWeather")
             print(f"   📊 AQI distribution: {df['aqi'].value_counts().sort_index().to_dict()}")
             return df
