@@ -82,8 +82,7 @@ This project predicts AQI category for Karachi, Pakistan for the next 72 hours u
 karachi-aqi-predictor/
 ├── .github/workflows/          # CI/CD automation
 │   ├── hourly-data-collection.yml
-│   ├── daily-model-training.yml
-│   └── workflow-monitor.yml    # Auto-recovery system
+│   └── daily-model-training.yml
 ├── src/                        # Source code
 │   ├── config.py              # Configuration management
 │   ├── database.py            # MongoDB handler
@@ -205,18 +204,11 @@ View all models and metrics: `python show_models.py`
    - Updates model registry
    - Commits updated models to Git
 
-3. **Workflow Monitor** (`workflow-monitor.yml`)
-   - Runs: Every 15 minutes
-   - Checks if database is >1.5 hours behind
-   - Auto-triggers data collection if delayed
-   - Self-healing system for missed runs
-
 ### Features
 
 - ✅ Automated data collection (hourly)
 - ✅ Automated model retraining (daily)
 - ✅ Model versioning in MongoDB
-- ✅ Auto-recovery from missed workflow runs
 - ✅ Temporal validation (no data leakage)
 - ✅ Production deployment on Streamlit Cloud
 
