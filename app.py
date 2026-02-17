@@ -285,12 +285,12 @@ def main():
                         'borderwidth': 2,
                         'bordercolor': "#e9ecef",
                         'steps': [
-                            {'range': [0, 1], 'color': '#00e40044'},
-                            {'range': [1, 2], 'color': '#ffff0044'},
-                            {'range': [2, 3], 'color': '#ff7e0044'},
-                            {'range': [3, 4], 'color': '#ff000044'},
-                            {'range': [4, 5], 'color': '#8f3f9744'},
-                            {'range': [5, 6], 'color': '#7e002344'}
+                            {'range': [0, 1], 'color': 'rgba(0, 228, 0, 0.3)'},
+                            {'range': [1, 2], 'color': 'rgba(255, 255, 0, 0.3)'},
+                            {'range': [2, 3], 'color': 'rgba(255, 126, 0, 0.3)'},
+                            {'range': [3, 4], 'color': 'rgba(255, 0, 0, 0.3)'},
+                            {'range': [4, 5], 'color': 'rgba(143, 63, 151, 0.3)'},
+                            {'range': [5, 6], 'color': 'rgba(126, 0, 35, 0.3)'}
                         ],
                         'threshold': {
                             'line': {'color': current_color, 'width': 4},
