@@ -406,7 +406,7 @@ def main():
                 for model_name, metadata in registry.model_metadata.items():
                     model_data.append({
                         'Model': model_name,
-                        'Accuracy': f"{metadata['metrics']['accuracy']:.1%}",
+                        'Accuracy': f"{metadata['metrics']['test_accuracy']:.1%}",
                         'Precision': f"{metadata['metrics']['precision']:.1%}",
                         'F1 Score': f"{metadata['metrics']['f1_score']:.1%}",
                         'Best': '🥇' if metadata.get('is_best', False) else ''
@@ -429,7 +429,7 @@ def main():
                 for model_name, metadata in registry.model_metadata.items():
                     acc_data.append({
                         'Model': model_name,
-                        'Accuracy': metadata['metrics']['accuracy'] * 100,
+                        'Accuracy': metadata['metrics']['test_accuracy'] * 100,
                         'Best': metadata.get('is_best', False)
                     })
                 
