@@ -81,6 +81,16 @@ class TrainingPipeline:
         print(f"   Original: {len(df):,} records")
         print(f"   After creating target: {len(df_train):,} records")
         
+        # Remove rows with NaN in ANY feature (from lag/rolling features)
+        original_count = len(df_train)
+        df_train = df_train.dropna()
+        nan_removed = original_count - len(df_train)
+        
+        if nan_removed > 0:
+            print(f"   ⚠️  Removed {nan_removed:,} records with NaN features (insufficient history)")
+        
+        print(f"   Final training records: {len(df_train):,}")
+        
         # Separate features and target
         # Exclude datetime, target, target variable, and categorical columns
         exclude_cols = ['datetime', 'target', TARGET_VARIABLE, 'aqi_category', 'aqi_value']

@@ -46,8 +46,7 @@ class FeaturePipeline:
                 'relative_humidity_2m',
                 'wind_speed_10m',
                 'wind_direction_10m',
-                'cloud_cover',
-                'precipitation'
+                'cloud_cover'
             ],
             'timezone': 'auto',
             'past_days': days
@@ -64,8 +63,7 @@ class FeaturePipeline:
                 'humidity': data['hourly']['relative_humidity_2m'],
                 'wind_speed': data['hourly']['wind_speed_10m'],
                 'wind_direction': data['hourly']['wind_direction_10m'],
-                'cloud_cover': data['hourly']['cloud_cover'],
-                'precipitation': data['hourly']['precipitation']
+                'cloud_cover': data['hourly']['cloud_cover']
             })
             
             print(f"   ✅ Fetched {len(df)} weather records")
@@ -199,9 +197,7 @@ class FeaturePipeline:
         """Create derived features (matches training dataset)"""
         print("🔧 Creating derived features...")
         
-        # AQI rate of change (using direct AQI from OpenWeather)
-        df['aqi_change_1h'] = df['aqi'].diff(1)
-        df['aqi_change_3h'] = df['aqi'].diff(3)
+        # AQI rate of change - only 24h (1h and 3h were dropped during EDA)
         df['aqi_change_24h'] = df['aqi'].diff(24)
         
         # Interactions (matches training dataset)
@@ -212,7 +208,7 @@ class FeaturePipeline:
         # Note: AQI column already exists from OpenWeather API (direct values 1-5)
         # No conversion needed - this matches training dataset methodology
         
-        print("   ✅ Created 6 derived features (AQI already provided by OpenWeather)")
+        print("   ✅ Created 4 derived features (AQI already provided by OpenWeather)")
         return df
     
     # ========================================
