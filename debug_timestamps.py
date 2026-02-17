@@ -33,13 +33,15 @@ print("\n🌐 Checking OpenWeather API...")
 end = datetime.now()
 start = end - timedelta(hours=6)
 
+from src.config import OPENWEATHER_API_KEY
+
 url = 'http://api.openweathermap.org/data/2.5/air_pollution/history'
 params = {
     'lat': 24.8608,
     'lon': 67.0104,
     'start': int(start.timestamp()),
     'end': int(end.timestamp()),
-    'appid': '678f012de82d8e4ff82abaf4a5e8fe38'
+    'appid': OPENWEATHER_API_KEY
 }
 
 r = requests.get(url, params=params)
