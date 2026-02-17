@@ -16,7 +16,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from src.database import MongoDBHandler
-from src.config import LATITUDE, LONGITUDE, LAG_FEATURES, ROLLING_WINDOWS
+from src.config import LATITUDE, LONGITUDE, LAG_FEATURES, ROLLING_WINDOWS, OPENWEATHER_API_KEY
 import time
 
 
@@ -76,22 +76,22 @@ class FeaturePipeline:
             return None
     
     def fetch_aqi_data(self, days=1):
-        """Fetch air quality data from Open-Meteo"""
-        print(f"💨 Fetching AQI data for last {days} day(s)...")
+        """Fetch AQI data from OpenWeather API (matches training dataset source)"""
+        print(f"💨 Fetching AQI data from OpenWeather for last {days} day(s)...")
         
-        url = "https://air-quality-api.open-meteo.com/v1/air-quality"
+        # Calculate time range
+        end_time = datetime.now()
+        start_time = end_time - timedelta(days=days)
+        start_timestamp = int(start_time.timestamp())
+        end_timestamp = int(end_time.timestamp())
+        
+        url = "http://api.openweathermap.org/data/2.5/air_pollution/history"
         params = {
-            'latitude': self.lat,
-            'longitude': self.lon,
-            'hourly': [
-                'pm10',
-                'pm2_5',
-                'carbon_monoxide',
-                'nitrogen_dioxide',
-                'sulphur_dioxide',
-                'ozone'
-            ],
-            'past_days': days
+            'lat': self.lat,
+            'lon': self.lon,
+            'start': start_timestamp,
+            'end': end_timestamp,
+            'appid': OPENWEATHER_API_KEY
         }
         
         try:
@@ -99,21 +99,41 @@ class FeaturePipeline:
             response.raise_for_status()
             data = response.json()
             
-            df = pd.DataFrame({
-                'datetime': data['hourly']['time'],
-                'pm10': data['hourly']['pm10'],
-                'pm2_5': data['hourly']['pm2_5'],
-                'co': data['hourly']['carbon_monoxide'],
-                'no2': data['hourly']['nitrogen_dioxide'],
-                'so2': data['hourly']['sulphur_dioxide'],
-                'o3': data['hourly']['ozone']
-            })
+            # Extract hourly records
+            records = []
+            for hour_data in data.get('list', []):
+                record = {
+                    'datetime': datetime.fromtimestamp(hour_data['dt']).strftime('%Y-%m-%dT%H:%M'),
+                    'aqi': hour_data['main']['aqi'],  # Direct AQI (1-5)
+                    'co': hour_data['components']['co'],
+                    'no': hour_data['components'].get('no', 0),
+                    'no2': hour_data['components']['no2'],
+                    'o3': hour_data['components']['o3'],
+                    'so2': hour_data['components']['so2'],
+                    'pm2_5': hour_data['components']['pm2_5'],
+                    'pm10': hour_data['components']['pm10'],
+                    'nh3': hour_data['components'].get('nh3', 0)
+                }
+                records.append(record)
             
-            print(f"   ✅ Fetched {len(df)} AQI records")
+            df = pd.DataFrame(records)
+            
+            # Map AQI to categories (same as training data)
+            aqi_mapping = {
+                1: 'Good',
+                2: 'Fair',
+                3: 'Moderate',
+                4: 'Poor',
+                5: 'Very Poor'
+            }
+            df['aqi_category'] = df['aqi'].map(aqi_mapping)
+            
+            print(f"   ✅ Fetched {len(df)} AQI records from OpenWeather")
+            print(f"   📊 AQI distribution: {df['aqi'].value_counts().sort_index().to_dict()}")
             return df
             
         except Exception as e:
-            print(f"   ❌ Error fetching AQI data: {e}")
+            print(f"   ❌ Error fetching AQI data from OpenWeather: {e}")
             return None
     
     # ========================================
@@ -146,12 +166,14 @@ class FeaturePipeline:
         return df
     
     def create_lag_features(self, df):
-        """Create lag features"""
+        """Create lag features (using AQI as in training data)"""
         print("⏮️  Creating lag features...")
         
+        # AQI lag features (matches training dataset)
         for lag in LAG_FEATURES:
-            df[f'pm2_5_lag_{lag}h'] = df['pm2_5'].shift(lag)
+            df[f'aqi_lag_{lag}h'] = df['aqi'].shift(lag)
         
+        # Weather lag features
         df['temperature_lag_24h'] = df['temperature'].shift(24)
         df['humidity_lag_24h'] = df['humidity'].shift(24)
         df['wind_speed_lag_24h'] = df['wind_speed'].shift(24)
@@ -160,60 +182,37 @@ class FeaturePipeline:
         return df
     
     def create_rolling_features(self, df):
-        """Create rolling window features"""
+        """Create rolling window features (using AQI as in training data)"""
         print("📊 Creating rolling features...")
         
+        # AQI rolling features (matches training dataset)
         for window in ROLLING_WINDOWS:
-            df[f'pm2_5_rolling_mean_{window}h'] = df['pm2_5'].rolling(window).mean()
-            df[f'pm2_5_rolling_std_{window}h'] = df['pm2_5'].rolling(window).std()
-            df[f'pm2_5_rolling_min_{window}h'] = df['pm2_5'].rolling(window).min()
-            df[f'pm2_5_rolling_max_{window}h'] = df['pm2_5'].rolling(window).max()
+            df[f'aqi_rolling_mean_{window}h'] = df['aqi'].rolling(window).mean()
+            df[f'aqi_rolling_std_{window}h'] = df['aqi'].rolling(window).std()
+            df[f'aqi_rolling_min_{window}h'] = df['aqi'].rolling(window).min()
+            df[f'aqi_rolling_max_{window}h'] = df['aqi'].rolling(window).max()
         
         print(f"   ✅ Created {len(ROLLING_WINDOWS) * 4} rolling features")
         return df
     
     def create_derived_features(self, df):
-        """Create derived features"""
+        """Create derived features (matches training dataset)"""
         print("🔧 Creating derived features...")
         
-        # Rate of change
-        df['pm2_5_change_1h'] = df['pm2_5'].diff(1)
-        df['pm2_5_change_3h'] = df['pm2_5'].diff(3)
-        df['pm2_5_change_24h'] = df['pm2_5'].diff(24)
+        # AQI rate of change (using direct AQI from OpenWeather)
+        df['aqi_change_1h'] = df['aqi'].diff(1)
+        df['aqi_change_3h'] = df['aqi'].diff(3)
+        df['aqi_change_24h'] = df['aqi'].diff(24)
         
-        # Ratios
-        df['pm2_5_pm10_ratio'] = df['pm2_5'] / (df['pm10'] + 1e-6)
-        df['pm2_5_no2_ratio'] = df['pm2_5'] / (df['no2'] + 1e-6)
-        
-        # Interactions
+        # Interactions (matches training dataset)
         df['temp_humidity'] = df['temperature'] * df['humidity']
-        df['wind_pollution'] = df['wind_speed'] * df['pm2_5']
+        df['wind_pollution'] = df['wind_speed'] * df['aqi']  # Using AQI as pollution indicator
         df['temp_wind'] = df['temperature'] * df['wind_speed']
         
-        # Total pollution
-        df['total_pollution'] = df['pm2_5'] + df['pm10'] + df['no2'] + df['so2']
+        # Note: AQI column already exists from OpenWeather API (direct values 1-5)
+        # No conversion needed - this matches training dataset methodology
         
-        # ========================================
-        # AQI BUCKET (TARGET VARIABLE)
-        # ========================================
-        # Convert PM2.5 to AQI buckets (Indian AQI scale)
-        # Based on: https://en.wikipedia.org/wiki/Air_quality_index#India
-        def pm25_to_aqi_bucket(pm25):
-            """Convert PM2.5 to AQI bucket (2=Fair, 3=Moderate, 4=Poor, 5=Very Poor)"""
-            if pd.isna(pm25):
-                return np.nan
-            elif pm25 <= 30:      # Good to Fair
-                return 2
-            elif pm25 <= 60:      # Moderate  
-                return 3
-            elif pm25 <= 90:      # Poor
-                return 4
-            else:                 # Very Poor / Severe
-                return 5
-        
-        df['aqi'] = df['pm2_5'].apply(pm25_to_aqi_bucket)
-        
-        print("   ✅ Created 10 derived features (including AQI bucket)")
+        print("   ✅ Created 6 derived features (AQI already provided by OpenWeather)")
         return df
     
     # ========================================

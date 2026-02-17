@@ -34,6 +34,9 @@ CITY_NAME = get_config('CITY_NAME', 'Karachi')
 LATITUDE = float(get_config('LATITUDE', 24.8608))
 LONGITUDE = float(get_config('LONGITUDE', 67.0104))
 
+# OpenWeather API Configuration (for AQI data)
+OPENWEATHER_API_KEY = get_config('OPENWEATHER_API_KEY', '678f012de82d8e4ff82abaf4a5e8fe38')
+
 # Model Configuration
 PREDICTION_HORIZON = int(get_config('PREDICTION_HORIZON', 72))  # Hours to predict
 TRAIN_TEST_SPLIT = float(get_config('TRAIN_TEST_SPLIT', 0.2))
