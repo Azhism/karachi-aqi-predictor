@@ -127,28 +127,64 @@ class TrainingPipeline:
         """Define all models to train"""
         print("\n🤖 Defining classification models...")
         
+        # ─────────────────────────────────────────────
+        #  RANDOM FOREST
+        # ─────────────────────────────────────────────
+        # TODO: Replace with tuned hyperparameters after RandomizedSearchCV
         self.models = {
             'RandomForest': RandomForestClassifier(
-                n_estimators=100,
-                max_depth=15,
-                min_samples_split=5,
+                n_estimators=100,           # Default: 100
+                max_depth=None,             # Default: None (full depth)
+                min_samples_split=2,        # Default: 2
+                min_samples_leaf=1,         # Default: 1
+                max_features='sqrt',        # Default: 'sqrt' for classification
+                bootstrap=True,             # Default: True
+                criterion='gini',           # Default: 'gini'
+                max_samples=None,           # Default: None (use all samples when bootstrap=True)
                 random_state=RANDOM_STATE,
                 n_jobs=-1
             ),
             
+            # ─────────────────────────────────────────────
+            #  XGBOOST
+            # ─────────────────────────────────────────────
+            # TODO: Replace with tuned hyperparameters after RandomizedSearchCV
             'XGBoost': XGBClassifier(
-                n_estimators=100,
-                max_depth=7,
-                learning_rate=0.1,
+                n_estimators=100,           # Default: 100
+                max_depth=6,                # Default: 6
+                learning_rate=0.3,          # Default: 0.3
+                subsample=1.0,              # Default: 1.0
+                colsample_bytree=1.0,       # Default: 1.0
+                min_child_weight=1,         # Default: 1
+                gamma=0,                    # Default: 0
+                reg_alpha=0,                # Default: 0 (L1)
+                reg_lambda=1,               # Default: 1 (L2)
+                max_delta_step=0,           # Default: 0 (helps with imbalanced classes)
                 random_state=RANDOM_STATE,
                 n_jobs=-1,
                 eval_metric='mlogloss'
             ),
             
+            # ─────────────────────────────────────────────
+            #  LIGHTGBM
+            # ─────────────────────────────────────────────
+            # TODO: Replace with tuned hyperparameters after RandomizedSearchCV
             'LightGBM': LGBMClassifier(
-                n_estimators=100,
-                max_depth=7,
-                learning_rate=0.1,
+                n_estimators=100,           # Default: 100
+                max_depth=-1,               # Default: -1 (unlimited)
+                learning_rate=0.1,          # Default: 0.1
+                num_leaves=31,              # Default: 31
+                subsample=1.0,              # Default: 1.0
+                subsample_freq=0,           # Default: 0
+                colsample_bytree=1.0,       # Default: 1.0
+                reg_alpha=0.0,              # Default: 0.0 (L1)
+                reg_lambda=0.0,             # Default: 0.0 (L2)
+                min_child_samples=20,       # Default: 20
+                min_split_gain=0.0,         # Default: 0.0
+                max_bin=255,                # Default: 255 (histogram bins)
+                path_smooth=0.0,            # Default: 0.0 (label smoothing)
+                extra_trees=False,          # Default: False (extremely randomized trees)
+                class_weight=None,          # Default: None (use 'balanced' for imbalanced data)
                 random_state=RANDOM_STATE,
                 n_jobs=-1,
                 verbose=-1
@@ -157,6 +193,7 @@ class TrainingPipeline:
         
         print(f"   ✅ Defined {len(self.models)} classification models")
         print(f"   Models: {', '.join(self.models.keys())}")
+        print(f"   📝 Using default hyperparameters (update after tuning)")
     
     def train_and_evaluate(self, X_train, X_test, y_train, y_test):
         """Train and evaluate all models"""

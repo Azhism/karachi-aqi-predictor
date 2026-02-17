@@ -193,7 +193,27 @@ class FeaturePipeline:
         # Total pollution
         df['total_pollution'] = df['pm2_5'] + df['pm10'] + df['no2'] + df['so2']
         
-        print("   ✅ Created 9 derived features")
+        # ========================================
+        # AQI BUCKET (TARGET VARIABLE)
+        # ========================================
+        # Convert PM2.5 to AQI buckets (Indian AQI scale)
+        # Based on: https://en.wikipedia.org/wiki/Air_quality_index#India
+        def pm25_to_aqi_bucket(pm25):
+            """Convert PM2.5 to AQI bucket (2=Fair, 3=Moderate, 4=Poor, 5=Very Poor)"""
+            if pd.isna(pm25):
+                return np.nan
+            elif pm25 <= 30:      # Good to Fair
+                return 2
+            elif pm25 <= 60:      # Moderate  
+                return 3
+            elif pm25 <= 90:      # Poor
+                return 4
+            else:                 # Very Poor / Severe
+                return 5
+        
+        df['aqi'] = df['pm2_5'].apply(pm25_to_aqi_bucket)
+        
+        print("   ✅ Created 10 derived features (including AQI bucket)")
         return df
     
     # ========================================
