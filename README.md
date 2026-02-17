@@ -2,6 +2,8 @@
 
 Air Quality Index prediction system for Karachi using Machine Learning and MLOps practices.
 
+> 📄 **Complete Technical Documentation**: See [10Pearls_Internship.pdf](10Pearls_Internship.pdf) for comprehensive project report including challenges, learnings, and detailed analysis.
+
 ## Project Overview
 
 This project predicts AQI category for Karachi, Pakistan for the next 72 hours using:
@@ -16,16 +18,17 @@ This project predicts AQI category for Karachi, Pakistan for the next 72 hours u
 ## Dataset
 
 - **Location**: Karachi, Pakistan (24.8608°N, 67.0104°E)
-- **Duration**: 78 days of historical data (Dec 1, 2025 - Feb 17, 2026)
+- **Duration**: 79 days of historical data (Dec 1, 2025 - Feb 18, 2026)
 - **Frequency**: Hourly measurements
-- **Total Records**: 1,872 hourly data points
+- **Total Records**: 1,878 hourly data points (growing via automated collection)
 - **Features**: 30 engineered features including:
-  - Weather: temperature, humidity, wind speed, cloud cover, precipitation, pressure
-  - Pollution: PM2.5, AQI category
-  - Time-based: hour, day, month, day of week, cyclical encodings
-  - Lag features: 24h, 48h, 72h (prevents data leakage)
-  - Rolling features: 72h window means and standard deviations
-  - Derived features: weather interactions, trends
+  - **Raw Weather** (5): temperature, humidity, wind_speed, wind_direction, cloud_cover
+  - **Raw Pollutants** (8): PM2.5, PM10, CO, NO, NO₂, O₃, SO₂, NH₃ (all in µg/m³)
+  - **Target** (1): AQI category from OpenWeather API
+  - **Time-based** (5): hour, day, month, day of week, cyclical encodings (sin/cos)
+  - **Lag features** (3): AQI values at 24h, 48h, 72h ago (prevents data leakage)
+  - **Rolling statistics** (6+): 72-hour window means and standard deviations
+  - **Derived features** (8+): weather interactions, trend indicators
 
 ## Prediction Task
 
@@ -54,7 +57,7 @@ This project predicts AQI category for Karachi, Pakistan for the next 72 hours u
 ┌─────────────────────────┐
 │   MongoDB Atlas         │
 │   Collections:          │
-│   • features (1,872)    │
+│   • features (1,878)    │
 │   • models (metadata)   │
 │   • predictions         │
 └──────────┬──────────────┘
@@ -63,7 +66,7 @@ This project predicts AQI category for Karachi, Pakistan for the next 72 hours u
 ┌─────────────────────────┐
 │   Training Pipeline     │
 │   (GitHub Actions)      │
-│   Runs: Daily 2 AM UTC  │
+│   Runs: Daily 3 AM UTC  │
 │   Models: RF, XGB, LGBM │
 └──────────┬──────────────┘
            │
