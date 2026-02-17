@@ -73,6 +73,7 @@ This project predicts AQI category for Karachi, Pakistan for the next 72 hours u
 │   • Model Registry      │
 │   • 72h Predictions     │
 │   • Historical Charts   │
+│   • SHAP Analysis       │
 └─────────────────────────┘
 ```
 
@@ -97,7 +98,7 @@ karachi-aqi-predictor/
 │   ├── label_encoder.joblib
 │   └── feature_columns.joblib
 ├── data/                       # Local CSV data
-├── app.py                      # Streamlit dashboard
+├── app.py                      # Streamlit dashboard (with SHAP)
 ├── show_latest.py              # Check latest MongoDB record
 ├── show_models.py              # View model registry from MongoDB
 ├── test_api_key.py             # Test API credentials
@@ -187,6 +188,33 @@ All models stored in:
 
 View all models and metrics: `python show_models.py`
 
+## 🔍 Model Interpretability (SHAP)
+
+The dashboard includes **SHAP (SHapley Additive exPlanations)** analysis to explain model predictions:
+
+### Global Feature Importance
+Shows which features matter most across all predictions:
+- **Top Features** (by SHAP values):
+  1. `cloud_cover` - Weather conditions
+  2. `day_of_week_sin` - Temporal patterns
+  3. `temperature` - Environmental factor
+  4. `aqi_rolling_mean_72h` - Historical trend
+  5. `aqi_lag_24h`, `aqi_lag_48h` - Recent history
+
+### Individual Prediction Explanation
+For each prediction, SHAP shows:
+- Which features **increase** AQI (positive SHAP values)
+- Which features **decrease** AQI (negative SHAP values)
+- Magnitude of each feature's impact
+
+**Benefits:**
+- 🧠 Understand why the model predicts specific AQI values
+- 🔎 Identify key driving factors (pollution, weather, time)
+- ✅ Build trust in model decisions
+- 📊 Validate that the model uses sensible patterns
+
+**Technology:** Uses TreeExplainer for tree-based models (RandomForest, XGBoost, LightGBM)
+
 ## Automation & MLOps
 
 ### GitHub Actions Workflows
@@ -211,6 +239,7 @@ View all models and metrics: `python show_models.py`
 - ✅ Model versioning in MongoDB
 - ✅ Temporal validation (no data leakage)
 - ✅ Production deployment on Streamlit Cloud
+- ✅ **SHAP model interpretability** (feature importance + prediction explanations)
 
 ## �️ Utilities
 
