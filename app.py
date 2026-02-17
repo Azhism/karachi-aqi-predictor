@@ -149,7 +149,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Initialize
-@st.cache_resource
+@st.cache_resource(ttl=3600)  # Cache for 1 hour then reload
 def init_registry():
     """Initialize model registry"""
     registry = ModelRegistry()
