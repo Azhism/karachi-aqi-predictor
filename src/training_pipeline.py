@@ -138,37 +138,35 @@ class TrainingPipeline:
         print("\n🤖 Defining classification models...")
         
         # ─────────────────────────────────────────────
-        #  RANDOM FOREST
+        #  RANDOM FOREST - REGULARIZED TO PREVENT OVERFITTING
         # ─────────────────────────────────────────────
-        # TODO: Replace with tuned hyperparameters after RandomizedSearchCV
         self.models = {
             'RandomForest': RandomForestClassifier(
-                n_estimators=100,           # Default: 100
-                max_depth=None,             # Default: None (full depth)
-                min_samples_split=2,        # Default: 2
-                min_samples_leaf=1,         # Default: 1
+                n_estimators=200,           # More trees, shallower
+                max_depth=10,               # LIMIT DEPTH to prevent memorization
+                min_samples_split=20,       # Need at least 20 samples to split
+                min_samples_leaf=10,        # Each leaf needs at least 10 samples
                 max_features='sqrt',        # Default: 'sqrt' for classification
                 bootstrap=True,             # Default: True
                 criterion='gini',           # Default: 'gini'
-                max_samples=None,           # Default: None (use all samples when bootstrap=True)
+                max_samples=0.8,            # Use only 80% of samples per tree
                 random_state=RANDOM_STATE,
                 n_jobs=-1
             ),
             
             # ─────────────────────────────────────────────
-            #  XGBOOST
+            #  XGBOOST - REGULARIZED TO PREVENT OVERFITTING
             # ─────────────────────────────────────────────
-            # TODO: Replace with tuned hyperparameters after RandomizedSearchCV
             'XGBoost': XGBClassifier(
-                n_estimators=100,           # Default: 100
-                max_depth=6,                # Default: 6
-                learning_rate=0.3,          # Default: 0.3
-                subsample=1.0,              # Default: 1.0
-                colsample_bytree=1.0,       # Default: 1.0
-                min_child_weight=1,         # Default: 1
-                gamma=0,                    # Default: 0
-                reg_alpha=0,                # Default: 0 (L1)
-                reg_lambda=1,               # Default: 1 (L2)
+                n_estimators=200,           # More trees
+                max_depth=4,                # REDUCED depth (was 6)
+                learning_rate=0.05,         # REDUCED learning rate (was 0.3)
+                subsample=0.8,              # Use 80% of data per tree
+                colsample_bytree=0.8,       # Use 80% of features per tree
+                min_child_weight=3,         # Minimum samples in leaf (was 1)
+                gamma=0.1,                  # Minimum loss reduction (was 0)
+                reg_alpha=0.5,              # L1 regularization (was 0)
+                reg_lambda=2.0,             # L2 regularization (was 1)
                 max_delta_step=0,           # Default: 0 (helps with imbalanced classes)
                 random_state=RANDOM_STATE,
                 n_jobs=-1,
@@ -176,22 +174,21 @@ class TrainingPipeline:
             ),
             
             # ─────────────────────────────────────────────
-            #  LIGHTGBM
+            #  LIGHTGBM - REGULARIZED TO PREVENT OVERFITTING
             # ─────────────────────────────────────────────
-            # TODO: Replace with tuned hyperparameters after RandomizedSearchCV
             'LightGBM': LGBMClassifier(
-                n_estimators=100,           # Default: 100
-                max_depth=-1,               # Default: -1 (unlimited)
-                learning_rate=0.1,          # Default: 0.1
-                num_leaves=31,              # Default: 31
-                subsample=1.0,              # Default: 1.0
-                subsample_freq=0,           # Default: 0
-                colsample_bytree=1.0,       # Default: 1.0
-                reg_alpha=0.0,              # Default: 0.0 (L1)
-                reg_lambda=0.0,             # Default: 0.0 (L2)
-                min_child_samples=20,       # Default: 20
-                min_split_gain=0.0,         # Default: 0.0
-                max_bin=255,                # Default: 255 (histogram bins)
+                n_estimators=200,           # More trees
+                max_depth=8,                # LIMIT DEPTH (was -1 unlimited!)
+                learning_rate=0.05,         # REDUCED learning rate (was 0.1)
+                num_leaves=20,              # REDUCED leaves (was 31)
+                subsample=0.8,              # Use 80% of data (was 1.0)
+                subsample_freq=1,           # Apply subsample every iteration (was 0)
+                colsample_bytree=0.8,       # Use 80% of features (was 1.0)
+                reg_alpha=0.5,              # L1 regularization (was 0.0!)
+                reg_lambda=2.0,             # L2 regularization (was 0.0!)
+                min_child_samples=30,       # Increased from 20
+                min_split_gain=0.01,        # Require gain to split (was 0.0)
+                max_bin=200,                # Reduced histogram bins (was 255)
                 path_smooth=0.0,            # Default: 0.0 (label smoothing)
                 extra_trees=False,          # Default: False (extremely randomized trees)
                 class_weight=None,          # Default: None (use 'balanced' for imbalanced data)
