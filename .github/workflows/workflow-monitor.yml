@@ -1,0 +1,95 @@
+name: Workflow Monitor & Auto-Trigger
+
+on:
+  schedule:
+    # Run every 15 minutes to check for missed hourly runs
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install pymongo python-dotenv requests
+    
+    - name: Check for missing hourly data
+      id: check_missing
+      env:
+        MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      run: |
+        python << 'EOF'
+        import os
+        from datetime import datetime, timezone, timedelta
+        from pymongo import MongoClient
+        
+        # Connect to MongoDB
+        client = MongoClient(os.environ['MONGODB_URI'])
+        db = client['aqi_karachi']
+        collection = db['hourly_features']
+        
+        # Get latest record
+        latest = collection.find_one(sort=[('timestamp', -1)])
+        
+        if latest:
+            latest_time = latest['timestamp']
+            current_time = datetime.now(timezone.utc)
+            
+            # Calculate difference
+            time_diff = current_time - latest_time
+            hours_behind = time_diff.total_seconds() / 3600
+            
+            print(f"Latest data: {latest_time}")
+            print(f"Current time: {current_time}")
+            print(f"Hours behind: {hours_behind:.2f}")
+            
+            # If we're more than 1.5 hours behind, trigger data collection
+            if hours_behind > 1.5:
+                print(f"⚠️ MISSING DATA DETECTED: {hours_behind:.2f} hours behind")
+                print("trigger=true")
+                # Set output for GitHub Actions
+                with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                    f.write(f"trigger=true\n")
+                    f.write(f"hours_behind={hours_behind:.2f}\n")
+            else:
+                print("✅ Data is up to date")
+                with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                    f.write(f"trigger=false\n")
+        else:
+            print("⚠️ No data found in database")
+            with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                f.write(f"trigger=true\n")
+        
+        client.close()
+        EOF
+    
+    - name: Trigger hourly data collection
+      if: steps.check_missing.outputs.trigger == 'true'
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          console.log('🚨 Triggering hourly data collection due to missing data');
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'hourly-data-collection.yml',
+            ref: 'main'
+          });
+          console.log('✅ Workflow triggered successfully');
+    
+    - name: Log status
+      run: |
+        echo "Monitor check completed at $(date)"
+        echo "Trigger status: ${{ steps.check_missing.outputs.trigger }}"

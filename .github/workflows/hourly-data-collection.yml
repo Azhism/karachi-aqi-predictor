@@ -24,19 +24,53 @@ jobs:
         pip install --upgrade pip
         pip install -r requirements.txt
     
+    - name: Log workflow start
+      run: |
+        echo "🚀 Starting hourly data collection"
+        echo "⏰ Workflow triggered at: $(date -u) UTC"
+        echo "📍 Local time: $(date)"
+    
     - name: Fetch latest data and update MongoDB
       env:
         MONGODB_URI: ${{ secrets.MONGODB_URI }}
         OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
       run: |
+        echo "📊 Fetching data from APIs and updating MongoDB..."
         python -m src.feature_pipeline
+        echo "✅ Feature pipeline execution completed"
+    
+    - name: Verify data update
+      env:
+        MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      run: |
+        python << 'EOF'
+        import os
+        from pymongo import MongoClient
+        from datetime import datetime
+        
+        client = MongoClient(os.environ['MONGODB_URI'])
+        db = client['aqi_karachi']
+        collection = db['hourly_features']
+        
+        latest = collection.find_one(sort=[('timestamp', -1)])
+        if latest:
+            print(f"✅ Latest record timestamp: {latest['timestamp']}")
+            print(f"📊 Total records in DB: {collection.count_documents({})}")
+        else:
+            print("⚠️ No records found")
+        
+        client.close()
+        EOF
     
     - name: Log completion
       if: success()
       run: |
-        echo "✅ Data collection completed successfully at $(date)"
+        echo "✅ Data collection completed successfully"
+        echo "⏰ Finished at: $(date -u) UTC"
     
     - name: Log failure
       if: failure()
       run: |
-        echo "❌ Data collection failed at $(date)"
+        echo "❌ Data collection failed"
+        echo "⏰ Failed at: $(date -u) UTC"
+        echo "Please check the logs above for error details"
