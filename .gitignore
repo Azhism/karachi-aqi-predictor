@@ -22,9 +22,8 @@ __pycache__/
 data/*.csv
 *.csv
 
-# Model files
+# Model files (joblib models ARE committed for deployment)
 models/*.pkl
-models/*.joblib
 *.h5
 
 # OS
