@@ -243,26 +243,6 @@ python test_api_key.py
 python test_predictions.py
 ```
 
-## Development Notes
-
-### Data Preparation
-- Removed short lag features (1h, 3h, 6h, 12h) - potential data leakage for 72h prediction
-- Only use lags ≥ 24h (24h, 48h, 72h)
-- Rolling windows match prediction horizon (72h)
-- 30 engineered features from weather and AQI data
-
-### Validation Strategy
-- **Current**: Stratified random split for balanced class distribution
-- **Alternative**: Temporal split (shuffle=False) for realistic time-series validation
-  - Temporal gives lower but more realistic scores (~26-42%)
-  - Current stratified approach optimizes for pattern recognition
-
-### Model Training
-- Conservative hyperparameters to reduce overfitting
-- 5-fold cross-validation for robust evaluation
-- Daily automated retraining via GitHub Actions
-- All models and metrics stored in MongoDB registry
-
 ## Author
 
 **Azhab Safwan Babar**
