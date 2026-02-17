@@ -3,11 +3,14 @@ Streamlit Dashboard for Karachi AQI Predictor
 """
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
 from src.database import MongoDBHandler
 from src.model_registry import ModelRegistry
+import shap
+import matplotlib.pyplot as plt
 
 # Page configuration
 st.set_page_config(
@@ -454,7 +457,176 @@ def main():
                     font={'family': 'Inter'}
                 )
                 
-                st.plotly_chart(fig_acc, width='stretch')
+                st.plotly_chart(fig_acc, use_container_width=True)
+        
+        st.divider()
+        
+        # SHAP Analysis Section
+        st.markdown('<h2 class="section-header">🔍 Model Interpretability (SHAP Analysis)</h2>', unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1rem; border-radius: 10px; margin-bottom: 1rem;'>
+            <p style='color: white; margin: 0;'><strong>🧠 Understanding Predictions:</strong> SHAP (SHapley Additive exPlanations) shows which features are most important for predictions.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        try:
+            # Use the actual model that was used for predictions
+            actual_model_name = predictions.get('model_used', 'LightGBM')
+            model_for_shap = registry.get_model(actual_model_name)
+            df_latest = db.get_latest_features(n_hours=100)
+            
+            if model_for_shap and not df_latest.empty:
+                # Prepare features
+                df_latest_sorted = df_latest.sort_values('datetime').reset_index(drop=True)
+                X_recent = df_latest_sorted[registry.feature_columns].iloc[-50:]  # Last 50 hours
+                X_scaled = registry.scaler.transform(X_recent)
+                
+                # Convert back to DataFrame with feature names for SHAP
+                X_scaled_df = pd.DataFrame(X_scaled, columns=registry.feature_columns)
+                
+                shap_col1, shap_col2 = st.columns(2)
+                
+                with shap_col1:
+                    st.markdown("#### 🌍 Global Feature Importance")
+                    st.caption("Which features matter most overall for predictions?")
+                    
+                    with st.spinner("Computing SHAP values..."):
+                        # Create SHAP explainer
+                        explainer = shap.TreeExplainer(model_for_shap)
+                        shap_values = explainer.shap_values(X_scaled_df)
+                        
+                        # For multi-class, take absolute mean across classes
+                        if isinstance(shap_values, list):
+                            # LightGBM returns a list for multi-class
+                            shap_array = np.array(shap_values)  # Shape: (n_classes, n_samples, n_features)
+                            shap_values_combined = np.abs(shap_array).mean(axis=(0, 1))  # Mean across classes and samples
+                        else:
+                            # Single output
+                            shap_values_combined = np.abs(shap_values).mean(axis=0)  # Mean across samples
+                        
+                        # Calculate mean absolute SHAP values (ensure it's 1D)
+                        mean_shap_values = shap_values_combined.flatten()
+                        
+                        # Create feature importance dataframe
+                        feature_importance = []
+                        for i, feat in enumerate(registry.feature_columns):
+                            feature_importance.append({
+                                'feature': feat,
+                                'importance': float(mean_shap_values[i])
+                            })
+                        
+                        mean_shap = pd.DataFrame(feature_importance).sort_values('importance', ascending=True).tail(15)
+                        
+                        # Create horizontal bar chart
+                        fig_shap = go.Figure(go.Bar(
+                            x=mean_shap['importance'],
+                            y=mean_shap['feature'],
+                            orientation='h',
+                            marker=dict(
+                                color=mean_shap['importance'],
+                                colorscale='Viridis',
+                                showscale=True,
+                                colorbar=dict(title="Impact")
+                            )
+                        ))
+                        
+                        fig_shap.update_layout(
+                            title="Top 15 Most Important Features",
+                            xaxis_title="Mean |SHAP Value|",
+                            yaxis_title="",
+                            height=500,
+                            template='plotly_white',
+                            font={'family': 'Inter'}
+                        )
+                        
+                        st.plotly_chart(fig_shap, use_container_width=True)
+                
+                with shap_col2:
+                    st.markdown("#### 🎯 Individual Prediction Explanation")
+                    st.caption("Why did the model predict this specific AQI?")
+                    
+                    # Explain the most recent prediction (24h ahead input)
+                    if len(df_latest_sorted) >= 72:
+                        input_72h = df_latest_sorted[registry.feature_columns].iloc[-72:-71]
+                        X_72h_scaled = registry.scaler.transform(input_72h)
+                        X_72h_scaled_df = pd.DataFrame(X_72h_scaled, columns=registry.feature_columns)
+                        
+                        # Get SHAP values for this single prediction
+                        shap_single = explainer.shap_values(X_72h_scaled_df)
+                        
+                        # Get predicted class
+                        pred_class = model_for_shap.predict(X_72h_scaled_df)[0]
+                        
+                        if isinstance(shap_single, list):
+                            # For multi-class classification, use the predicted class's SHAP values
+                            shap_single_values = shap_single[pred_class][0]
+                        else:
+                            shap_single_values = shap_single[0]
+                        
+                        # Ensure we have a 1D array
+                        if isinstance(shap_single_values, np.ndarray):
+                            shap_single_values = shap_single_values.flatten()
+                        
+                        # Create waterfall-style explanation
+                        feature_contrib_list = []
+                        for i, feat in enumerate(registry.feature_columns):
+                            # Ensure we extract scalar values - handle any nested arrays
+                            shap_val = shap_single_values[i]
+                            
+                            # Recursively flatten until we get a scalar
+                            while isinstance(shap_val, np.ndarray):
+                                if shap_val.size == 1:
+                                    shap_val = shap_val.item()
+                                else:
+                                    shap_val = shap_val.mean()  # Take mean if multiple values
+                            
+                            feature_contrib_list.append({
+                                'feature': feat,
+                                'shap': float(shap_val)
+                            })
+                        
+                        feature_contrib = pd.DataFrame(feature_contrib_list).sort_values('shap', key=abs, ascending=True).tail(10)
+                        
+                        # Convert to list for plotting to avoid series issues
+                        shap_values_list = feature_contrib['shap'].tolist()
+                        feature_names_list = feature_contrib['feature'].tolist()
+                        
+                        fig_waterfall = go.Figure(go.Bar(
+                            x=shap_values_list,
+                            y=feature_names_list,
+                            orientation='h',
+                            marker=dict(
+                                color=shap_values_list,
+                                colorscale='RdYlGn_r',
+                                showscale=True,
+                                colorbar=dict(title="Effect")
+                            ),
+                            text=[f"{v:+.3f}" for v in shap_values_list],
+                            textposition='outside'
+                        ))
+                        
+                        fig_waterfall.update_layout(
+                            title="Top 10 Features Affecting Tomorrow's Prediction",
+                            xaxis_title="SHAP Value (Impact on prediction)",
+                            yaxis_title="",
+                            height=500,
+                            template='plotly_white',
+                            font={'family': 'Inter'}
+                        )
+                        
+                        st.plotly_chart(fig_waterfall, use_container_width=True)
+                        
+                        st.info("🔵 Positive values push AQI higher | 🟢 Negative values push AQI lower")
+                    else:
+                        st.warning("Need at least 72 hours of data for individual prediction analysis")
+            
+            else:
+                st.warning("⚠️ SHAP analysis requires model and data to be available")
+        
+        except Exception as e:
+            st.error(f"❌ SHAP analysis failed: {str(e)}")
+            st.caption("Note: SHAP works best with tree-based models (RandomForest, XGBoost, LightGBM)")
         
         st.divider()
         
