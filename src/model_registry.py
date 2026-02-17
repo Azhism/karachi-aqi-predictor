@@ -66,7 +66,7 @@ class ModelRegistry:
                 self.model_metadata[model_name] = metadata
                 
                 is_best = "🥇 BEST" if metadata.get('is_best', False) else ""
-                print(f"   ✅ {model_name:15} - Accuracy: {metadata['metrics']['accuracy']:.3f} {is_best}")
+                print(f"   ✅ {model_name:15} - Accuracy: {metadata['metrics']['test_accuracy']:.3f} {is_best}")
             except Exception as e:
                 print(f"   ❌ Failed to load {model_name}: {e}")
         
@@ -88,14 +88,14 @@ class ModelRegistry:
                 break
             
             # Fallback: use highest accuracy
-            accuracy = metadata['metrics']['accuracy']
+            accuracy = metadata['metrics']['test_accuracy']
             if accuracy > best_accuracy:
                 best_accuracy = accuracy
                 best_model_name = model_name
         
         if best_model_name:
             print(f"\n🥇 Best Model: {best_model_name}")
-            print(f"   Accuracy:  {self.model_metadata[best_model_name]['metrics']['accuracy']:.3f}")
+            print(f"   Accuracy:  {self.model_metadata[best_model_name]['metrics']['test_accuracy']:.3f}")
             print(f"   Precision: {self.model_metadata[best_model_name]['metrics']['precision']:.3f}")
             return best_model_name, self.models[best_model_name]
         
@@ -124,14 +124,14 @@ class ModelRegistry:
         # Sort by accuracy (highest first)
         sorted_models = sorted(
             self.model_metadata.items(),
-            key=lambda x: x[1]['metrics']['accuracy'],
+            key=lambda x: x[1]['metrics']['test_accuracy'],
             reverse=True
         )
         
         for model_name, metadata in sorted_models:
             is_best = "🥇" if metadata.get('is_best', False) else "  "
             metrics = metadata['metrics']
-            print(f"{is_best} {model_name:15} | Accuracy: {metrics['accuracy']:.3f} | Precision: {metrics['precision']:.3f} | F1: {metrics['f1_score']:.3f}")
+            print(f"{is_best} {model_name:15} | Accuracy: {metrics['test_accuracy']:.3f} | Precision: {metrics['precision']:.3f} | F1: {metrics['f1_score']:.3f}")
         
         print("="*60)
     

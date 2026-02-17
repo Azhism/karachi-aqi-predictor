@@ -264,7 +264,7 @@ def main():
             return
         
         # Display model info
-        st.info(f"🤖 **Model:** {predictions['model_used']} | **Accuracy:** {predictions['model_metrics']['accuracy']:.1%} | **Precision:** {predictions['model_metrics']['precision']:.1%}")
+        st.info(f"🤖 **Model:** {predictions['model_used']} | **Accuracy:** {predictions['model_metrics']['test_accuracy']:.1%} | **Precision:** {predictions['model_metrics']['precision']:.1%}")
         
         # Predictions Section
         st.markdown('<h2 class="section-header">🔮 Future AQI Predictions</h2>', unsafe_allow_html=True)
