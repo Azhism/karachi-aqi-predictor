@@ -211,10 +211,10 @@ class FeaturePipeline:
         Run hourly feature update
         
         This is called by GitHub Actions every hour to:
-        1. Fetch latest 2 days of data (to have enough for lag features)
-        2. Get existing features from MongoDB
+        1. Fetch latest 1 day of data (gets the newest hour)
+        2. Get last 72 hours from MongoDB (for lag calculations)
         3. Combine and engineer features
-        4. Store only new features
+        4. Store only NEW records (typically 1 per hour = 24/day)
         """
         print("\n" + "="*60)
         print("🔄 HOURLY FEATURE UPDATE")
@@ -222,9 +222,10 @@ class FeaturePipeline:
         print(f"Time: {datetime.now()}")
         
         try:
-            # Fetch latest data (2 days to ensure lag features work)
-            weather_df = self.fetch_weather_data(days=2)
-            aqi_df = self.fetch_aqi_data(days=2)
+            # Fetch latest 1 day - API returns hourly data, we need the newest hour
+            # We load last 72h from MongoDB to calculate lag features
+            weather_df = self.fetch_weather_data(days=1)
+            aqi_df = self.fetch_aqi_data(days=1)
             
             if weather_df is None or aqi_df is None:
                 print("❌ Failed to fetch data. Aborting update.")
@@ -236,12 +237,16 @@ class FeaturePipeline:
             df_new['datetime'] = pd.to_datetime(df_new['datetime'])
             df_new = df_new.sort_values('datetime').reset_index(drop=True)
             
-            # Get existing features from MongoDB
-            print("📥 Loading existing features from MongoDB...")
-            df_existing = self.db.get_features()  # Get ALL existing records
+            # Get ONLY last 72 hours from MongoDB (optimization: don't load ALL data)
+            print("📥 Loading last 72 hours from MongoDB...")
+            df_existing = self.db.get_latest_features(n_hours=72)
             
             if not df_existing.empty:
-                # Combine with existing
+                # Find what's the latest timestamp in DB
+                latest_db_time = pd.to_datetime(df_existing['datetime'].max())
+                print(f"   Latest DB timestamp: {latest_db_time}")
+                
+                # Combine with existing (for lag/rolling calculations)
                 print("🔗 Combining with existing features...")
                 df_combined = pd.concat([df_existing, df_new], ignore_index=True)
                 df_combined = df_combined.drop_duplicates(subset=['datetime'])
@@ -249,6 +254,7 @@ class FeaturePipeline:
             else:
                 print("ℹ️  No existing features found. Using new data only.")
                 df_combined = df_new
+                latest_db_time = None
             
             # Engineer features
             df_combined = self.create_time_features(df_combined)
@@ -256,25 +262,27 @@ class FeaturePipeline:
             df_combined = self.create_rolling_features(df_combined)
             df_combined = self.create_derived_features(df_combined)
             
-            # Find new records FIRST (before dropping NaN)
-            if not df_existing.empty:
-                latest_db_time = pd.to_datetime(df_existing['datetime'].max())
+            # Find NEW records only (after latest DB timestamp)
+            if latest_db_time is not None:
                 df_new_only = df_combined[df_combined['datetime'] > latest_db_time]
+                print(f"🔍 Found {len(df_new_only)} records newer than {latest_db_time}")
             else:
                 df_new_only = df_combined
+                print(f"🔍 No existing data - will store all {len(df_new_only)} records")
             
-            # Remove NaN only from new records
+            # Remove NaN from new records (due to lag features)
             print(f"🧹 Cleaning NaN values from {len(df_new_only)} new records...")
             original_new_count = len(df_new_only)
             df_new_only = df_new_only.dropna()
             nan_removed = original_new_count - len(df_new_only)
             
             if nan_removed > 0:
-                print(f"   ⚠️  Removed {nan_removed} records with NaN (insufficient history for lag features)")
-                print(f"   ✅ {len(df_new_only)} clean new records ready to store")
+                print(f"   ⚠️  Removed {nan_removed} records with NaN (insufficient lag history)")
+                print(f"   ✅ {len(df_new_only)} clean records ready to store")
             
             if len(df_new_only) > 0:
-                print(f"💾 Storing {len(df_new_only)} new feature records...")
+                print(f"\n💾 Storing {len(df_new_only)} NEW records to MongoDB...")
+                print(f"   Expected: ~1 record/hour = ~24 records/day")
                 
                 # Append new records to MongoDB
                 records = df_new_only.to_dict('records')
@@ -283,12 +291,19 @@ class FeaturePipeline:
                         record['datetime'] = pd.to_datetime(record['datetime'])
                 
                 self.db.features.insert_many(records)
-                print(f"✅ Stored {len(df_new_only)} new records")
+                print(f"✅ Successfully stored {len(df_new_only)} new records")
+                
+                # Show what was added
+                if len(df_new_only) <= 5:
+                    print(f"\n📋 Added records:")
+                    for _, row in df_new_only.iterrows():
+                        print(f"   • {row['datetime']} - AQI: {row['aqi']}")
             else:
-                print("ℹ️  No new records to store. Database is up to date.")
+                print("\nℹ️  No new records to store. Database is up to date.")
             
             print("\n" + "="*60)
             print("✅ HOURLY UPDATE COMPLETE!")
+            print(f"   Records added this run: {len(df_new_only) if len(df_new_only) > 0 else 0}")
             print("="*60)
             
             return True
