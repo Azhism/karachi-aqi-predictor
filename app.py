@@ -177,9 +177,23 @@ def get_aqi_category_and_style(aqi_value):
         return "Severe", "#7e0023", "aqi-severe", "☠️"
 
 def main():
-    # Modern Header
-    st.markdown('<h1 class="main-header">🌍 Karachi Air Quality Predictor</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">Real-time AQI predictions powered by Machine Learning | Updated hourly with live data</p>', unsafe_allow_html=True)
+    # Header with AQI Scale on the right
+    col_header, col_scale = st.columns([3, 1])
+    
+    with col_header:
+        st.markdown('<h1 class="main-header" style="text-align: left; padding-left: 2rem;">🌍 Karachi Air Quality Predictor</h1>', unsafe_allow_html=True)
+        st.markdown('<p class="sub-header" style="text-align: left; padding-left: 2rem;">Real-time AQI predictions powered by Machine Learning | Updated hourly with live data</p>', unsafe_allow_html=True)
+    
+    with col_scale:
+        st.markdown("""<div style='font-size: 0.75rem; margin-top: 1rem;'>
+        <strong>📊 AQI Scale</strong><br>
+        <div style='padding: 0.2rem; background: #00e400; border-radius: 3px; margin: 0.1rem 0; color: white;'>🟢 Good (0-1)</div>
+        <div style='padding: 0.2rem; background: #ffcc00; color: #333; border-radius: 3px; margin: 0.1rem 0;'>🟡 Satisfactory (1-2)</div>
+        <div style='padding: 0.2rem; background: #ff7e00; border-radius: 3px; margin: 0.1rem 0; color: white;'>🟠 Moderate (2-3)</div>
+        <div style='padding: 0.2rem; background: #ff0000; border-radius: 3px; margin: 0.1rem 0; color: white;'>🔴 Poor (3-4)</div>
+        <div style='padding: 0.2rem; background: #8f3f97; border-radius: 3px; margin: 0.1rem 0; color: white;'>🟣 Very Poor (4-5)</div>
+        <div style='padding: 0.2rem; background: #7e0023; border-radius: 3px; margin: 0.1rem 0; color: white;'>⚫ Severe (5+)</div>
+        </div>""", unsafe_allow_html=True)
     
     # Sidebar
     with st.sidebar:
@@ -214,19 +228,6 @@ def main():
         """)
         
         st.divider()
-        
-        # AQI Scale
-        st.markdown("### 📊 AQI Scale Guide")
-        st.markdown("""
-        <div style='font-size: 0.9rem;'>
-        <div style='padding: 0.3rem; background: #00e400; border-radius: 5px; margin: 0.2rem 0;'>🟢 <strong>Good</strong> (0-1)</div>
-        <div style='padding: 0.3rem; background: #ffff00; color: #333; border-radius: 5px; margin: 0.2rem 0;'>🟡 <strong>Satisfactory</strong> (1-2)</div>
-        <div style='padding: 0.3rem; background: #ff7e00; border-radius: 5px; margin: 0.2rem 0;'>🟠 <strong>Moderate</strong> (2-3)</div>
-        <div style='padding: 0.3rem; background: #ff0000; border-radius: 5px; margin: 0.2rem 0;'>🔴 <strong>Poor</strong> (3-4)</div>
-        <div style='padding: 0.3rem; background: #8f3f97; border-radius: 5px; margin: 0.2rem 0;'>🟣 <strong>Very Poor</strong> (4-5)</div>
-        <div style='padding: 0.3rem; background: #7e0023; border-radius: 5px; margin: 0.2rem 0;'>⚫ <strong>Severe</strong> (5+)</div>
-        </div>
-        """, unsafe_allow_html=True)
         
         st.divider()
         
@@ -267,17 +268,66 @@ def main():
             current_time = df_current.iloc[0]['datetime']
             current_category, current_color, current_class, current_emoji = get_aqi_category_and_style(current_aqi)
             
-            # Current AQI Banner
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, {current_color}dd 0%, {current_color}aa 100%); 
-                        padding: 1.5rem; border-radius: 15px; text-align: center; margin-bottom: 2rem;
-                        box-shadow: 0 8px 25px rgba(0,0,0,0.15);">
-                <h2 style="color: white; margin: 0; font-size: 1.2rem; opacity: 0.95;">Current Air Quality in Karachi</h2>
-                <h1 style="color: white; margin: 0.5rem 0; font-size: 4rem; font-weight: 700;">{current_emoji} {int(current_aqi)}</h1>
-                <h3 style="color: white; margin: 0; font-size: 1.5rem; font-weight: 600;">{current_category}</h3>
-                <p style="color: white; margin-top: 0.5rem; opacity: 0.9;">Last updated: {current_time.strftime('%B %d, %Y at %H:%M')}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            # Current AQI with Gauge
+            col1, col2 = st.columns([1, 2])
+            
+            with col1:
+                # AQI Gauge
+                fig_gauge = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=current_aqi,
+                    title={'text': "Current AQI", 'font': {'size': 24, 'color': '#2c3e50'}},
+                    number={'font': {'size': 60, 'color': current_color}},
+                    gauge={
+                        'axis': {'range': [0, 6], 'tickwidth': 2, 'tickcolor': "#2c3e50"},
+                        'bar': {'color': current_color, 'thickness': 0.75},
+                        'bgcolor': "white",
+                        'borderwidth': 2,
+                        'bordercolor': "#e9ecef",
+                        'steps': [
+                            {'range': [0, 1], 'color': '#00e40044'},
+                            {'range': [1, 2], 'color': '#ffff0044'},
+                            {'range': [2, 3], 'color': '#ff7e0044'},
+                            {'range': [3, 4], 'color': '#ff000044'},
+                            {'range': [4, 5], 'color': '#8f3f9744'},
+                            {'range': [5, 6], 'color': '#7e002344'}
+                        ],
+                        'threshold': {
+                            'line': {'color': current_color, 'width': 4},
+                            'thickness': 0.75,
+                            'value': current_aqi
+                        }
+                    }
+                ))
+                
+                fig_gauge.update_layout(
+                    height=350,
+                    margin=dict(l=20, r=20, t=80, b=20),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font={'family': 'Inter'}
+                )
+                
+                st.plotly_chart(fig_gauge, use_container_width=True)
+            
+            with col2:
+                # Info Card with better contrast
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                            padding: 2rem; border-radius: 15px; height: 100%; display: flex; flex-direction: column; justify-content: center;
+                            box-shadow: 0 8px 25px rgba(0,0,0,0.15);">
+                    <h2 style="color: white; margin: 0; font-size: 1.5rem; font-weight: 600;">Current Air Quality in Karachi</h2>
+                    <div style="margin: 1.5rem 0;">
+                        <span style="font-size: 5rem; line-height: 1;">{current_emoji}</span>
+                    </div>
+                    <h3 style="color: white; margin: 0.5rem 0; font-size: 2.5rem; font-weight: 700;">{current_category}</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin: 1rem 0 0 0; font-size: 1rem;">Last updated: {current_time.strftime('%B %d, %Y at %H:%M')}</p>
+                    <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.15); border-radius: 10px;">
+                        <p style="color: white; margin: 0; font-size: 0.9rem; line-height: 1.6;">
+                            <strong>AQI Level {int(current_aqi)}</strong> - {'Air quality is acceptable.' if current_aqi <= 2 else 'Air quality is degraded.' if current_aqi <= 3 else 'Health effects may be experienced.' if current_aqi <= 4 else 'Health alert: everyone may experience serious effects.'}
+                        </p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
         
         # Display model info
         st.info(f"🤖 **Model:** {predictions['model_used']} | **Accuracy:** {predictions['model_metrics']['accuracy']:.1%} | **Precision:** {predictions['model_metrics']['precision']:.1%}")
